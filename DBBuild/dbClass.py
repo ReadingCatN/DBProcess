@@ -2,6 +2,7 @@ import psycopg2
 import pymysql
 import pandas as pd
 import functools
+from pandas.io.sql import DatabaseError
 
 
 
@@ -151,7 +152,7 @@ class myDB:
                 df = df[~df['PO/OA number'].isin(po_to_drop)]
 
             data=[tuple(row) for index,row in df.iterrows()] 
-            print(len(data))       
+            print(f"We have {len(data)} rows to insert")    
             for i in range(0, len(data), batch_size):
                 batch = data[i:i + batch_size]
                 try:
@@ -176,7 +177,22 @@ class myDB:
         table=self.tableName
         print(f"Successfully insert the data to {table}")
     
-   
+    def db_fetch(self, query):
+        try:
+            if not self.connection:
+                print("Error: No active database connection")
+                return pd.DataFrame()  # Return empty DataFrame
+            df = pd.read_sql_query(query, self.connection)
+            if df.empty:
+                print("Warning: Query returned no data")
+            return df
+        except DatabaseError as e:
+            print(f"SQL Error: {e}")
+            return pd.DataFrame()    
+        except Exception as e:
+            error_type = type(e).__name__
+            print(f"Database Error ({error_type}): {e}")
+            return pd.DataFrame() 
 
     def close(self):
         if self.connection:
